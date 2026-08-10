@@ -1,0 +1,66 @@
+{
+  "entities": {
+    "clauses": {
+      "title": "Clauses",
+      "description": "Library of contract clauses",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "folderId": { "type": "string" },
+        "titleRu": { "type": "string" },
+        "titleEn": { "type": "string" },
+        "contentRu": { "type": "string" },
+        "contentEn": { "type": "string" },
+        "level": { "type": "number" },
+        "isFavorite": { "type": "boolean" },
+        "variables": { "type": "array", "items": { "type": "string" } },
+        "tags": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["id", "name", "category", "titleRu", "contentRu"]
+    },
+    "templates": {
+      "title": "Contract Templates",
+      "description": "Templates for generating contracts",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "partyARole": { "type": "string" },
+        "partyBRole": { "type": "string" },
+        "clauseIds": { "type": "array", "items": { "type": "string" } },
+        "customVariables": { "type": "object" }
+      },
+      "required": ["id", "name", "category"]
+    },
+    "contracts": {
+      "title": "Contract Documents",
+      "description": "Contracts created by users",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "number": { "type": "string" },
+        "date": { "type": "string" },
+        "city": { "type": "string" },
+        "bilingual": { "type": "boolean" },
+        "customVariables": { "type": "object" }
+      },
+      "required": ["id", "title"]
+    },
+    "folders": {
+      "title": "Folder Hierarchy",
+      "description": "Folders for clause categorization",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "parentId": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    }
+  }
+}

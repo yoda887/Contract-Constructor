@@ -1,0 +1,6 @@
+{
+  "name": "Clause 9 Studio by ClauseBase",
+  "description": "Интеллектуальная среда составления и автоматизации договоров в стиле Clause 9 и ClauseBuddy: смарт-анкеты, библиотека клаузул, альтернативные рисковые варианты и ИИ-аудит Gemini.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
