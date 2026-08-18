@@ -19,10 +19,12 @@ interface ClauseLibraryProps {
   onSearchChange: (q: string) => void;
   onlyFavorites: boolean;
   onToggleOnlyFavorites: () => void;
-  onToggleAddClause: (clause: Clause) => void;
+  selectedClause?: Clause | null;
+  selectedClauseNumber?: number | null;
+  onToggleAddClause: (clause: Clause, position?: 'above' | 'below' | 'start' | 'end', relativeToClauseId?: string) => void;
   onEditClause: (clause: Clause) => void;
   onDeleteClause: (clauseId: string) => void;
-  onOpenNewClauseModal: () => void;
+  onOpenNewClauseModal?: () => void;
 }
 
 export const ClauseLibrary: React.FC<ClauseLibraryProps> = ({
@@ -39,6 +41,8 @@ export const ClauseLibrary: React.FC<ClauseLibraryProps> = ({
   onSearchChange,
   onlyFavorites,
   onToggleOnlyFavorites,
+  selectedClause,
+  selectedClauseNumber,
   onToggleAddClause,
   onEditClause,
   onDeleteClause,
@@ -48,14 +52,12 @@ export const ClauseLibrary: React.FC<ClauseLibraryProps> = ({
   // Batch size for progressive rendering when library contains many clauses
   const INITIAL_BATCH_SIZE = 20;
   const [visibleCount, setVisibleCount] = useState<number>(INITIAL_BATCH_SIZE);
+  const [isFolderSectionOpen, setIsFolderSectionOpen] = useState<boolean>(true);
 
   // Reset pagination on filter change
   useEffect(() => {
     setVisibleCount(INITIAL_BATCH_SIZE);
   }, [searchQuery, selectedCategory, selectedFolderId, onlyFavorites]);
-
-  // Categories list
-  const categories = ['all', 'Поставка', 'Ответственность', 'Приемка', 'Подряд', 'Общие условия', 'ЭДО', 'Застережения', 'Форс-мажор', 'ВЭД', 'Аренда'];
 
   // Filter clauses efficiently with useMemo
   const filteredClauses = useMemo(() => {
@@ -129,83 +131,85 @@ export const ClauseLibrary: React.FC<ClauseLibraryProps> = ({
   const rootFolders = folders.filter(f => f.parentId === null);
 
   return (
-    <div className="space-y-3.5">
+    <div className="h-full flex flex-col min-h-0 space-y-3">
       
-      {/* Top Search & Actions */}
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1">
-          <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Поиск по названию, тексту или тегам..."
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-          />
-        </div>
+      {/* Fixed Top Controls */}
+      <div className="shrink-0 space-y-2.5">
+        {/* Top Search & Actions */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Поиск по названию, тексту или тегам..."
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+            />
+          </div>
 
-        <button
-          onClick={onToggleOnlyFavorites}
-          className={`p-1.5 rounded-lg border text-xs font-bold transition-colors flex items-center space-x-1 ${
-            onlyFavorites
-              ? 'bg-amber-50 border-amber-300 text-amber-700'
-              : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-          }`}
-          title="Фильтр избранных клауз"
-        >
-          <Star className={`w-3.5 h-3.5 ${onlyFavorites ? 'fill-amber-400 text-amber-500' : ''}`} />
-        </button>
-
-        <button
-          onClick={onOpenNewClauseModal}
-          className="p-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-          title="Добавить новый пункт в библиотеку"
-        >
-          <Plus className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* Category Pills */}
-      <div className="flex items-center space-x-1 overflow-x-auto pb-1 text-xs scrollbar-none">
-        {categories.map(cat => (
           <button
-            key={cat}
-            onClick={() => onSelectCategory(cat)}
-            className={`px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap transition-colors ${
-              selectedCategory === cat
-                ? 'bg-slate-900 text-white'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            onClick={onToggleOnlyFavorites}
+            className={`p-1.5 rounded-lg border text-xs font-bold transition-colors flex items-center space-x-1 ${
+              onlyFavorites
+                ? 'bg-amber-50 border-amber-300 text-amber-700'
+                : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
             }`}
+            title="Фильтр избранных клауз"
           >
-            {cat === 'all' ? 'Все категории' : cat}
+            <Star className={`w-3.5 h-3.5 ${onlyFavorites ? 'fill-amber-400 text-amber-500' : ''}`} />
           </button>
-        ))}
-      </div>
 
-      {/* Folder Tree Filter (Collapsible Header) */}
-      <div className="bg-slate-50 rounded-xl p-2.5 border border-slate-200/80 space-y-1">
-        <div className="flex items-center justify-between text-[11px] font-extrabold text-slate-500 uppercase tracking-wider px-1">
-          <span className="flex items-center space-x-1">
-            <BookOpen className="w-3 h-3 text-slate-400" />
-            <span>Папки рубрикатора</span>
-          </span>
-          {selectedFolderId && (
+          {onOpenNewClauseModal && (
             <button
-              onClick={() => onSelectFolder(null)}
-              className="text-blue-600 hover:underline capitalize"
+              onClick={onOpenNewClauseModal}
+              className="p-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-xs flex items-center justify-center"
+              title="Создать новую клаузу в библиотеке"
             >
-              Сбросить папку
+              <Plus className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
-        <div className="max-h-36 overflow-y-auto space-y-0.5 pr-1">
-          {rootFolders.map(rf => renderFolderNode(rf))}
-        </div>
-      </div>
 
-      {/* Clause Cards List */}
-      <div className="space-y-3 pt-1">
-        <div className="flex items-center justify-between text-xs text-slate-500 font-bold px-1">
+        {/* Folder Tree Filter (Collapsible Header) */}
+        <div className="bg-slate-50 rounded-xl p-2 border border-slate-200/80 space-y-1">
+          <div className="flex items-center justify-between text-[11px] font-extrabold text-slate-500 uppercase tracking-wider px-1">
+            <button
+              onClick={() => setIsFolderSectionOpen(!isFolderSectionOpen)}
+              className="flex items-center space-x-1.5 text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+              title={isFolderSectionOpen ? "Свернуть рубрикатор" : "Развернуть рубрикатор"}
+            >
+              {isFolderSectionOpen ? (
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+              ) : (
+                <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+              )}
+              <BookOpen className="w-3 h-3 text-slate-400" />
+              <span>Папки рубрикатора</span>
+              {!isFolderSectionOpen && selectedFolderId && (
+                <span className="ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 normal-case">
+                  {folders.find(f => f.id === selectedFolderId)?.name || 'Выбрана папка'}
+                </span>
+              )}
+            </button>
+            {selectedFolderId && (
+              <button
+                onClick={() => onSelectFolder(null)}
+                className="text-blue-600 hover:underline capitalize"
+              >
+                Сбросить папку
+              </button>
+            )}
+          </div>
+          {isFolderSectionOpen && (
+            <div className="max-h-28 overflow-y-auto space-y-0.5 pr-1 pt-1">
+              {rootFolders.map(rf => renderFolderNode(rf))}
+            </div>
+          )}
+        </div>
+
+        {/* Status Bar */}
+        <div className="flex items-center justify-between text-xs text-slate-500 font-bold px-1 pt-0.5">
           <span>Найдено клауз: {filteredClauses.length}</span>
           {filteredClauses.length > INITIAL_BATCH_SIZE && (
             <span className="text-[11px] text-slate-400 font-normal">
@@ -213,7 +217,10 @@ export const ClauseLibrary: React.FC<ClauseLibraryProps> = ({
             </span>
           )}
         </div>
+      </div>
 
+      {/* Clause Cards List (Scrollable Area) */}
+      <div className="flex-1 overflow-y-auto min-h-0 space-y-3 px-3.5 pt-2.5 pb-2">
         {filteredClauses.length === 0 ? (
           <div className="p-8 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-xs">
             Пункт не найден. Измените параметры поиска или добавьте новый пункт.
@@ -224,7 +231,10 @@ export const ClauseLibrary: React.FC<ClauseLibraryProps> = ({
               <ClauseCard
                 key={clause.id}
                 clause={clause}
-                inDocument={documentClauseIds.includes(clause.id)}
+                inDocument={false}
+                selectedClause={selectedClause}
+                selectedClauseNumber={selectedClauseNumber}
+                hasClauses={documentClauseIds.length > 0}
                 onToggleAdd={onToggleAddClause}
                 onEdit={onEditClause}
                 onDelete={onDeleteClause}

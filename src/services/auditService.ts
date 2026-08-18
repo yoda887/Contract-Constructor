@@ -1,24 +1,19 @@
 import { ContractDocument, AuditResult, AuditRisk } from '../types';
-import { resolveVariableValue } from '../utils/variableResolver';
+import { extractAllVariablesFromDocument, resolveClauseReference } from '../utils/variableResolver';
 
 export function runDocumentAudit(document: ContractDocument): AuditResult {
   const risks: AuditRisk[] = [];
   const unfilledVariables: string[] = [];
   const missingSections: string[] = [];
+  const brokenReferences: string[] = [];
 
-  // 1. Scan for unfilled variables [Variable]
-  document.clauses.forEach(clause => {
-    const matches = clause.contentRu.match(/\[([^\]]+)\]/g);
-    if (matches) {
-      matches.forEach(m => {
-        const varKey = m.replace('[', '').replace(']', '');
-        const filledVal = resolveVariableValue(varKey, document.customVariables);
-        if (!filledVal || filledVal.trim() === '' || filledVal === varKey) {
-          if (!unfilledVariables.includes(varKey)) {
-            unfilledVariables.push(varKey);
-          }
-        }
-      });
+  // 1. Scan for unfilled variables [Variable].
+  const allVariables = extractAllVariablesFromDocument(document);
+  allVariables.forEach(v => {
+    if (!v.currentValue || v.currentValue.trim() === '') {
+      if (!unfilledVariables.includes(v.key)) {
+        unfilledVariables.push(v.key);
+      }
     }
   });
 
@@ -31,7 +26,35 @@ export function runDocumentAudit(document: ContractDocument): AuditResult {
     });
   }
 
-  // 2. Check for critical clauses (e.g., Liability, Dispute Resolution, Term)
+  // 2. Scan for broken/dangling cross-references [ref:ID] or [ref:Title]
+  document.clauses.forEach(cl => {
+    const text = (cl.contentRu || '') + ' ' + (cl.contentEn || '');
+    const refMatches = text.match(/\[(?:ref:\s*|#)([^\]]+)\]/gi);
+    if (refMatches) {
+      refMatches.forEach(m => {
+        const target = m.replace(/^\[(?:ref:\s*|#)/i, '').replace(/\]$/, '').trim();
+        const res = resolveClauseReference(target, document);
+        if (!res.found) {
+          const clauseLabel = cl.titleRu || cl.name || cl.id;
+          const descriptor = `[ref:${target}] в пункте «${clauseLabel}»`;
+          if (!brokenReferences.includes(descriptor)) {
+            brokenReferences.push(descriptor);
+          }
+        }
+      });
+    }
+  });
+
+  if (brokenReferences.length > 0) {
+    risks.push({
+      level: 'HIGH',
+      title: 'Битые кросс-ссылки на отсутствующие или удаленные пункты',
+      description: `В тексте обнаружены недействительные ссылки: ${brokenReferences.join('; ')}. В готовом документе эти ссылки отобразятся как [п. ?].`,
+      suggestion: 'Отредактируйте указанные пункты и привяжите ссылки к существующим пунктам через меню ref, либо удалите неактуальные ссылки.'
+    });
+  }
+
+  // 3. Check for critical clauses (e.g., Liability, Dispute Resolution, Term)
   const categories = document.clauses.map(c => c.category);
   if (!categories.some(c => c.toLowerCase().includes('ответственность'))) {
     missingSections.push('Ответственность сторон');
@@ -56,6 +79,7 @@ export function runDocumentAudit(document: ContractDocument): AuditResult {
   // Calculate quality score
   let score = 100;
   score -= unfilledVariables.length * 10;
+  score -= brokenReferences.length * 15;
   score -= risks.filter(r => r.level === 'HIGH').length * 20;
   score -= risks.filter(r => r.level === 'MEDIUM').length * 10;
   score -= risks.filter(r => r.level === 'LOW').length * 5;
@@ -63,7 +87,7 @@ export function runDocumentAudit(document: ContractDocument): AuditResult {
 
   let summary = 'Договор соответствует юридическим стандартам.';
   if (score < 60) {
-    summary = 'Договор содержит критические риски и требует доработки перед подписание.';
+    summary = 'Договор содержит критические риски и требует доработки перед подписанием.';
   } else if (score < 85) {
     summary = 'Договор составлен корректно, но есть замечания по полноте условий.';
   }

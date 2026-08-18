@@ -7,6 +7,7 @@ import {
   extractAllVariablesFromDocument, 
   alignPartyVariablesWithPreamble 
 } from '../../utils/variableResolver';
+import { PartyForm } from '../common/PartyForm';
 
 interface QASurveyWizardProps {
   questionnaire: QuestionnaireAnswer[];
@@ -17,7 +18,6 @@ interface QASurveyWizardProps {
   onAutoFillAI: () => void;
   document?: ContractDocument;
   onUpdateDocument?: React.Dispatch<React.SetStateAction<ContractDocument>>;
-  onOpenVariableModal?: () => void;
   showToast?: (msg: string) => void;
 }
 
@@ -28,7 +28,6 @@ export const QASurveyWizard: React.FC<QASurveyWizardProps> = ({
   onAutoFillAI,
   document,
   onUpdateDocument,
-  onOpenVariableModal,
   showToast
 }) => {
   const [panelTab, setPanelTab] = useState<'qa' | 'preamble' | 'direct'>(
@@ -36,6 +35,30 @@ export const QASurveyWizard: React.FC<QASurveyWizardProps> = ({
   );
   const [newVarKey, setNewVarKey] = useState('');
   const [newVarVal, setNewVarVal] = useState('');
+  const [hoveredVarKey, setHoveredVarKey] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    const handleGlobalHover = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail) {
+        setHoveredVarKey(customEvent.detail.hovered ? customEvent.detail.key : null);
+      }
+    };
+    window.addEventListener('variable-hover', handleGlobalHover);
+    return () => {
+      window.removeEventListener('variable-hover', handleGlobalHover);
+    };
+  }, []);
+
+  const cleanKey = (key: string) => key.toLowerCase().trim().replace(/^\[/, '').replace(/\]$/, '').trim();
+
+  const triggerHover = (varKey: string, hovered: boolean) => {
+    window.dispatchEvent(
+      new CustomEvent('variable-hover', {
+        detail: { key: cleanKey(varKey), hovered }
+      })
+    );
+  };
 
   const total = questionnaire.length;
   const filledCount = questionnaire.filter(q => {
@@ -185,14 +208,20 @@ export const QASurveyWizard: React.FC<QASurveyWizardProps> = ({
             <div className="space-y-3.5">
               {questionnaire.map((q, idx) => {
                 const isAnswered = qaAnswers[q.id] !== undefined && qaAnswers[q.id] !== '' && qaAnswers[q.id] !== null;
+                const affectsKey = q.affectsVariable ? cleanKey(q.affectsVariable) : '';
+                const isHovered = affectsKey && hoveredVarKey === affectsKey;
 
                 return (
                   <div 
                     key={q.id} 
-                    className={`rounded-xl p-3.5 border transition-all ${
-                      isAnswered 
-                        ? 'bg-slate-50/70 border-slate-200' 
-                        : 'bg-amber-50/40 border-amber-200/80'
+                    onMouseEnter={() => q.affectsVariable && triggerHover(q.affectsVariable, true)}
+                    onMouseLeave={() => q.affectsVariable && triggerHover(q.affectsVariable, false)}
+                    className={`rounded-xl p-3.5 border transition-all duration-200 ${
+                      isHovered
+                        ? 'bg-amber-50/90 border-amber-400 ring-2 ring-amber-400 shadow-md scale-[1.015]'
+                        : isAnswered 
+                          ? 'bg-slate-50/70 border-slate-200' 
+                          : 'bg-amber-50/40 border-amber-200/80'
                     }`}
                   >
                     {/* QUESTION TITLE & STATUS */}
@@ -308,13 +337,17 @@ export const QASurveyWizard: React.FC<QASurveyWizardProps> = ({
                   value={document.number || ''}
                   onChange={e => onUpdateDocument(prev => {
                     const newNumber = e.target.value;
-                    let newTitle = prev.title;
-                    if (prev.number && prev.title.includes(prev.number)) {
-                      newTitle = prev.title.replace(prev.number, newNumber);
-                    } else if (prev.title.includes('№')) {
-                      const idx = prev.title.indexOf('№');
-                      newTitle = prev.title.substring(0, idx + 1) + ' ' + newNumber;
+                    let baseTitle = prev.title;
+                    const noSymbolIndex = prev.title.indexOf('№');
+                    if (noSymbolIndex !== -1) {
+                      baseTitle = prev.title.substring(0, noSymbolIndex).trim();
+                    } else if (prev.number && prev.title.includes(prev.number)) {
+                      baseTitle = prev.title.replace(prev.number, '').trim();
                     }
+                    if (!baseTitle) {
+                      baseTitle = 'Договор';
+                    }
+                    const newTitle = newNumber ? `${baseTitle} № ${newNumber}` : baseTitle;
                     return { ...prev, number: newNumber, title: newTitle };
                   })}
                   className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-3 py-1.5 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20"
@@ -355,7 +388,7 @@ export const QASurveyWizard: React.FC<QASurveyWizardProps> = ({
             
             {/* PARTY A */}
             <div className="bg-blue-50/40 p-4 rounded-xl border border-blue-200/80 space-y-3">
-              <div className="flex items-center justify-between border-b border-blue-200/60 pb-1.5">
+              <div className="flex items-center justify-between border-b border-blue-200/60 pb-1.5 mb-1">
                 <h4 className="font-extrabold text-blue-950 text-xs uppercase tracking-wide">
                   Сторона А
                 </h4>
@@ -363,92 +396,19 @@ export const QASurveyWizard: React.FC<QASurveyWizardProps> = ({
                   [{document.partyA.role || 'Поставщик'}]
                 </span>
               </div>
-
-              <div className="space-y-2">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
-                    Роль в договоре (например: Поставщик)
-                  </label>
-                  <input
-                    type="text"
-                    value={document.partyA.role || ''}
-                    onChange={e => onUpdateDocument(prev => ({
-                      ...prev,
-                      partyA: { ...prev.partyA, role: e.target.value }
-                    }))}
-                    className="w-full bg-white border border-slate-300 text-slate-900 font-bold rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
-                    Полное наименование
-                  </label>
-                  <input
-                    type="text"
-                    value={document.partyA.name || ''}
-                    onChange={e => onUpdateDocument(prev => ({
-                      ...prev,
-                      partyA: { ...prev.partyA, name: e.target.value }
-                    }))}
-                    className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    placeholder="ООО «Компания А»"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
-                    Сокращенное наименование
-                  </label>
-                  <input
-                    type="text"
-                    value={document.partyA.shortName || ''}
-                    onChange={e => onUpdateDocument(prev => ({
-                      ...prev,
-                      partyA: { ...prev.partyA, shortName: e.target.value }
-                    }))}
-                    className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    placeholder="Компания А"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
-                    Руководитель / Директор
-                  </label>
-                  <input
-                    type="text"
-                    value={document.partyA.director || ''}
-                    onChange={e => onUpdateDocument(prev => ({
-                      ...prev,
-                      partyA: { ...prev.partyA, director: e.target.value }
-                    }))}
-                    className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    placeholder="Иванов И.И."
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
-                    Код ЕГРПОУ / ИНН
-                  </label>
-                  <input
-                    type="text"
-                    value={document.partyA.code || ''}
-                    onChange={e => onUpdateDocument(prev => ({
-                      ...prev,
-                      partyA: { ...prev.partyA, code: e.target.value }
-                    }))}
-                    className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    placeholder="12345678"
-                  />
-                </div>
-              </div>
+              <PartyForm
+                party={document.partyA}
+                onChange={(updatedParty) => onUpdateDocument(prev => ({
+                  ...prev,
+                  partyA: updatedParty
+                }))}
+                colorTheme="blue"
+              />
             </div>
 
             {/* PARTY B */}
             <div className="bg-emerald-50/40 p-4 rounded-xl border border-emerald-200/80 space-y-3">
-              <div className="flex items-center justify-between border-b border-emerald-200/60 pb-1.5">
+              <div className="flex items-center justify-between border-b border-emerald-200/60 pb-1.5 mb-1">
                 <h4 className="font-extrabold text-emerald-950 text-xs uppercase tracking-wide">
                   Сторона Б
                 </h4>
@@ -456,87 +416,14 @@ export const QASurveyWizard: React.FC<QASurveyWizardProps> = ({
                   [{document.partyB.role || 'Покупатель'}]
                 </span>
               </div>
-
-              <div className="space-y-2">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
-                    Роль в договоре (например: Покупатель)
-                  </label>
-                  <input
-                    type="text"
-                    value={document.partyB.role || ''}
-                    onChange={e => onUpdateDocument(prev => ({
-                      ...prev,
-                      partyB: { ...prev.partyB, role: e.target.value }
-                    }))}
-                    className="w-full bg-white border border-slate-300 text-slate-900 font-bold rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
-                    Полное наименование
-                  </label>
-                  <input
-                    type="text"
-                    value={document.partyB.name || ''}
-                    onChange={e => onUpdateDocument(prev => ({
-                      ...prev,
-                      partyB: { ...prev.partyB, name: e.target.value }
-                    }))}
-                    className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    placeholder="ООО «Компания Б»"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
-                    Сокращенное наименование
-                  </label>
-                  <input
-                    type="text"
-                    value={document.partyB.shortName || ''}
-                    onChange={e => onUpdateDocument(prev => ({
-                      ...prev,
-                      partyB: { ...prev.partyB, shortName: e.target.value }
-                    }))}
-                    className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    placeholder="Компания Б"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
-                    Руководитель / Директор
-                  </label>
-                  <input
-                    type="text"
-                    value={document.partyB.director || ''}
-                    onChange={e => onUpdateDocument(prev => ({
-                      ...prev,
-                      partyB: { ...prev.partyB, director: e.target.value }
-                    }))}
-                    className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    placeholder="Петров П.П."
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
-                    Код ЕГРПОУ / ИНН
-                  </label>
-                  <input
-                    type="text"
-                    value={document.partyB.code || ''}
-                    onChange={e => onUpdateDocument(prev => ({
-                      ...prev,
-                      partyB: { ...prev.partyB, code: e.target.value }
-                    }))}
-                    className="w-full bg-white border border-slate-300 text-slate-900 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    placeholder="87654321"
-                  />
-                </div>
-              </div>
+              <PartyForm
+                party={document.partyB}
+                onChange={(updatedParty) => onUpdateDocument(prev => ({
+                  ...prev,
+                  partyB: updatedParty
+                }))}
+                colorTheme="emerald"
+              />
             </div>
 
           </div>
@@ -548,14 +435,6 @@ export const QASurveyWizard: React.FC<QASurveyWizardProps> = ({
         <div className="space-y-3.5">
           <div className="flex items-center justify-between text-xs">
             <span className="font-extrabold text-slate-900">Редактирование переменных</span>
-            {onOpenVariableModal && (
-              <button
-                onClick={onOpenVariableModal}
-                className="text-blue-600 hover:text-blue-800 font-bold text-[11px] underline cursor-pointer"
-              >
-                Открыть полный редактор →
-              </button>
-            )}
           </div>
 
           {/* ADD DIRECT VARIABLE INPUT */}
@@ -595,29 +474,40 @@ export const QASurveyWizard: React.FC<QASurveyWizardProps> = ({
                 В клаузах пока не обнаружены квадратные скобки [переменных] или прямые переменные "просто так".
               </div>
             ) : (
-              directVariables.map(v => (
-                <div 
-                  key={v.key}
-                  className="bg-slate-50 rounded-xl border border-slate-200 p-2.5 space-y-1.5"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono font-extrabold text-xs text-amber-900 bg-amber-100/90 px-1.5 py-0.5 rounded border border-amber-200/80">
-                      [{v.key}]
-                    </span>
-                    <span className="text-[10px] text-slate-400 font-semibold">
-                      {v.source === 'preamble' ? '🏛️ Из преамбулы' : '✏️ Прямая'}
-                    </span>
-                  </div>
+              directVariables.map(v => {
+                const vKeyClean = cleanKey(v.key);
+                const isHovered = hoveredVarKey === vKeyClean;
 
-                  <input
-                    type="text"
-                    value={v.currentValue}
-                    onChange={e => handleDirectVarChange(v.key, e.target.value)}
-                    placeholder="Введите значение..."
-                    className="w-full bg-white border border-slate-300 text-slate-900 text-xs rounded-lg px-2.5 py-1.5 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                  />
-                </div>
-              ))
+                return (
+                  <div 
+                    key={v.key}
+                    onMouseEnter={() => triggerHover(v.key, true)}
+                    onMouseLeave={() => triggerHover(v.key, false)}
+                    className={`rounded-xl border p-2.5 space-y-1.5 transition-all duration-200 ${
+                      isHovered
+                        ? 'bg-amber-50/90 border-amber-400 ring-2 ring-amber-400 shadow-md scale-[1.015]'
+                        : 'bg-slate-50 border-slate-200'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono font-extrabold text-xs text-amber-900 bg-amber-100/90 px-1.5 py-0.5 rounded border border-amber-200/80">
+                        [{v.key}]
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-semibold">
+                        {v.source === 'preamble' ? '🏛️ Из преамбулы' : '✏️ Прямая'}
+                      </span>
+                    </div>
+
+                    <input
+                      type="text"
+                      value={v.currentValue}
+                      onChange={e => handleDirectVarChange(v.key, e.target.value)}
+                      placeholder="Введите значение..."
+                      className="w-full bg-white border border-slate-300 text-slate-900 text-xs rounded-lg px-2.5 py-1.5 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    />
+                  </div>
+                );
+              })
             )}
           </div>
         </div>

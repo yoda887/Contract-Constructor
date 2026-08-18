@@ -11,34 +11,53 @@ const FOLDERS_COLLECTION = 'folders';
 const CONTRACTS_COLLECTION = 'contracts';
 
 /**
+ * Recursively strips undefined values from objects and arrays for Firestore compatibility.
+ * Firestore setDoc/updateDoc throws an error if any field is undefined.
+ */
+export function sanitizeForFirestore<T>(data: T): T {
+  if (data === undefined) {
+    return null as unknown as T;
+  }
+  if (data === null || typeof data !== 'object') {
+    return data;
+  }
+  if (Array.isArray(data)) {
+    return data
+      .filter((item) => item !== undefined)
+      .map((item) => sanitizeForFirestore(item)) as unknown as T;
+  }
+  const result: Record<string, any> = {};
+  for (const [key, value] of Object.entries(data as Record<string, any>)) {
+    if (value !== undefined) {
+      result[key] = sanitizeForFirestore(value);
+    }
+  }
+  return result as T;
+}
+
+/**
  * Seeds initial clauses, templates, and folders into Firestore if collections are empty.
  */
 export async function seedFirestoreIfEmpty() {
   try {
-    // Clauses
     const clausesSnap = await getDocs(collection(db, CLAUSES_COLLECTION));
-    if (clausesSnap.empty) {
-      console.log('Seeding initial clauses to Firestore...');
-      for (const clause of INITIAL_CLAUSES) {
-        await setDoc(doc(db, CLAUSES_COLLECTION, clause.id), clause);
-      }
-    }
-
-    // Templates
     const templatesSnap = await getDocs(collection(db, TEMPLATES_COLLECTION));
-    if (templatesSnap.empty) {
-      console.log('Seeding initial templates to Firestore...');
-      for (const tpl of SAMPLE_TEMPLATES) {
-        await setDoc(doc(db, TEMPLATES_COLLECTION, tpl.id), tpl);
-      }
-    }
-
-    // Folders
     const foldersSnap = await getDocs(collection(db, FOLDERS_COLLECTION));
-    if (foldersSnap.empty) {
-      console.log('Seeding initial folders to Firestore...');
+
+    // Only seed initial sample data if the entire database is empty/uninitialized
+    if (clausesSnap.empty && templatesSnap.empty && foldersSnap.empty) {
+      console.log('Database is completely empty. Seeding initial sample data to Firestore...');
+      
+      for (const clause of INITIAL_CLAUSES) {
+        await setDoc(doc(db, CLAUSES_COLLECTION, clause.id), sanitizeForFirestore(clause));
+      }
+      
+      for (const tpl of SAMPLE_TEMPLATES) {
+        await setDoc(doc(db, TEMPLATES_COLLECTION, tpl.id), sanitizeForFirestore(tpl));
+      }
+      
       for (const folder of INITIAL_FOLDERS) {
-        await setDoc(doc(db, FOLDERS_COLLECTION, folder.id), folder);
+        await setDoc(doc(db, FOLDERS_COLLECTION, folder.id), sanitizeForFirestore(folder));
       }
     }
   } catch (error) {
@@ -111,7 +130,8 @@ export function subscribeToFolders(callback: (folders: FolderNode[]) => void) {
  */
 export async function saveClauseToDb(clause: Clause) {
   try {
-    await setDoc(doc(db, CLAUSES_COLLECTION, clause.id), clause, { merge: true });
+    const cleanData = sanitizeForFirestore(clause);
+    await setDoc(doc(db, CLAUSES_COLLECTION, clause.id), cleanData, { merge: true });
   } catch (error) {
     console.error('Error saving clause to Firestore:', error);
   }
@@ -133,7 +153,8 @@ export async function deleteClauseFromDb(clauseId: string) {
  */
 export async function saveTemplateToDb(template: SampleTemplate) {
   try {
-    await setDoc(doc(db, TEMPLATES_COLLECTION, template.id), template, { merge: true });
+    const cleanData = sanitizeForFirestore(template);
+    await setDoc(doc(db, TEMPLATES_COLLECTION, template.id), cleanData, { merge: true });
   } catch (error) {
     console.error('Error saving template to Firestore:', error);
   }
@@ -155,7 +176,8 @@ export async function deleteTemplateFromDb(templateId: string) {
  */
 export async function saveContractToDb(contract: ContractDocument) {
   try {
-    await setDoc(doc(db, CONTRACTS_COLLECTION, contract.id), contract, { merge: true });
+    const cleanData = sanitizeForFirestore(contract);
+    await setDoc(doc(db, CONTRACTS_COLLECTION, contract.id), cleanData, { merge: true });
   } catch (error) {
     console.error('Error saving contract to Firestore:', error);
   }
