@@ -219,7 +219,32 @@ export const DslConditionBuilderModal: React.FC<DslConditionBuilderModalProps> =
             )}
           </div>
 
-          {/* Step 4: Code Preview */}
+          {/* Step 4: Visual Flow Diagram */}
+          <div className="p-3.5 bg-gradient-to-r from-purple-50 via-indigo-50 to-blue-50 rounded-xl border border-purple-200/80 space-y-2 font-ui-sans">
+            <span className="text-[11px] font-bold text-purple-900 uppercase tracking-wider flex items-center gap-1.5">
+              <GitBranch className="w-3.5 h-3.5 text-purple-600" />
+              <span>Визуальная схема правил:</span>
+            </span>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 text-xs">
+              <div className="px-3 py-1.5 bg-purple-700 text-white rounded-lg font-mono font-bold shadow-2xs text-center shrink-0">
+                IF {conditionExpr}
+              </div>
+              <div className="hidden sm:block text-purple-400 font-bold">➔</div>
+              <div className="flex-1 px-3 py-1.5 bg-emerald-100 text-emerald-900 border border-emerald-300 rounded-lg font-medium text-xs shadow-2xs">
+                <span className="font-bold text-emerald-700">True: </span>{trueText || '(Текст)'}
+              </div>
+              {hasElse && (
+                <>
+                  <div className="hidden sm:block text-amber-500 font-bold">/</div>
+                  <div className="flex-1 px-3 py-1.5 bg-amber-100 text-amber-900 border border-amber-300 rounded-lg font-medium text-xs shadow-2xs">
+                    <span className="font-bold text-amber-700">Else: </span>{falseText || '(Альтернатива)'}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Step 5: Code Preview */}
           <div className="space-y-1.5">
             <label className="font-bold text-slate-700 text-xs flex items-center space-x-1">
               <Sparkles className="w-3.5 h-3.5 text-purple-600" />

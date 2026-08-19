@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, HelpCircle, Star, Trash2, GitBranch, ListOrdered, List, Indent, Outdent, ChevronDown, Columns2, Columns3, Split, Link2 } from 'lucide-react';
+import { X, HelpCircle, Star, Trash2, GitBranch, ListOrdered, List, Indent, Outdent, ChevronDown, Columns2, Columns3, Split, Link2, Variable, Sparkles, Check } from 'lucide-react';
 import { Clause, FolderNode } from '../../types';
 import { generateUniqueClauseId } from '../../utils/idGenerator';
 import { getHierarchicalNumber, extractClauseSubItems, isClauseTitleVisible } from '../../utils/numbering';
@@ -532,17 +532,36 @@ export const ClauseEditModal: React.FC<ClauseEditModalProps> = ({
     }));
   };
 
-  // Helper to parse line text into formatted JSX elements (yellow brackets & styled HTML tags)
+  // Helper to parse line text into formatted JSX elements (yellow highlight for variables & HTML tags)
+  // Ensures exact 1:1 font metrics and zero horizontal padding so that the overlay aligns pixel-for-pixel with the textarea
   const renderPreviewLineContent = (lineText: string) => {
     // Regex splits variables [...], DSL condition tags {...}, and formatting tags <b>, <i>, <u>, etc.
-    const parts = lineText.split(/(\{[^}]+\}|\[[^\]]+\]|<\/?b>|<\/?i>|<\/?u>)/gi);
+    const parts = lineText.split(/(\{[^}]+\}|\[[^\]]+\]|<\/?b>|<\/?i>|<\/?u>|<\/?del>|<\/?s>)/gi);
 
     return parts.map((part, index) => {
       if (!part) return null;
 
       if (part.startsWith('[') && part.endsWith(']')) {
+        const varInner = part.slice(1, -1);
+        const isRef = varInner.toLowerCase().startsWith('ref:');
         return (
-          <span key={`var-${index}`} style={{ background: '#ffff00', fontWeight: 'normal', color: '#000' }}>
+          <span
+            key={`var-${index}`}
+            style={{
+              background: isRef ? '#e0f2fe' : '#fef08a',
+              color: isRef ? '#0369a1' : '#854d0e',
+              fontWeight: 'inherit',
+              fontFamily: 'inherit',
+              fontSize: 'inherit',
+              lineHeight: 'inherit',
+              letterSpacing: 'inherit',
+              padding: 0,
+              margin: 0,
+              border: 'none',
+              borderRadius: 0,
+              display: 'inline'
+            }}
+          >
             {part}
           </span>
         );
@@ -560,12 +579,16 @@ export const ClauseEditModal: React.FC<ClauseEditModalProps> = ({
               style={{
                 background: isElse ? '#fef3c7' : '#f3e8ff',
                 color: isElse ? '#92400e' : '#6b21a8',
-                fontWeight: 'bold',
-                borderRadius: '3px',
-                padding: '0 3px',
-                border: isElse ? '1px solid #fcd34d' : '1px solid #d8b4fe',
-                fontFamily: 'monospace',
-                fontSize: '11px'
+                fontWeight: 'inherit',
+                fontFamily: 'inherit',
+                fontSize: 'inherit',
+                lineHeight: 'inherit',
+                letterSpacing: 'inherit',
+                padding: 0,
+                margin: 0,
+                border: 'none',
+                borderRadius: 0,
+                display: 'inline'
               }}
             >
               {part}
@@ -574,9 +597,23 @@ export const ClauseEditModal: React.FC<ClauseEditModalProps> = ({
         }
       }
 
-      if (/^<\/?(b|i|u)>$/i.test(part)) {
+      if (/^<\/?(b|i|u|del|s)>$/i.test(part)) {
         return (
-          <span key={`tag-${index}`} style={{ color: '#94a3b8' }}>
+          <span
+            key={`tag-${index}`}
+            style={{
+              color: '#94a3b8',
+              fontWeight: 'inherit',
+              fontFamily: 'inherit',
+              fontSize: 'inherit',
+              lineHeight: 'inherit',
+              padding: 0,
+              margin: 0,
+              border: 'none',
+              borderRadius: 0,
+              display: 'inline'
+            }}
+          >
             {part}
           </span>
         );
@@ -609,7 +646,21 @@ export const ClauseEditModal: React.FC<ClauseEditModalProps> = ({
       if (isDelimiter) {
         return (
           <div key={idx} className="preview-line level-1">
-            <span style={{ color: '#4f46e5', fontWeight: 'bold', background: '#e0e7ff', padding: '0 2px', borderRadius: '2px' }}>
+            <span
+              style={{
+                color: '#4f46e5',
+                background: '#e0e7ff',
+                fontWeight: 'inherit',
+                fontFamily: 'inherit',
+                fontSize: 'inherit',
+                lineHeight: 'inherit',
+                padding: 0,
+                margin: 0,
+                border: 'none',
+                borderRadius: 0,
+                display: 'inline'
+              }}
+            >
               {rawLine}
             </span>
           </div>

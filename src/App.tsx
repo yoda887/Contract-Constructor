@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { BookOpen, GitFork } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { BookOpen, GitFork, Minimize2 } from 'lucide-react';
 import { useContractManager } from './hooks/useContractManager';
 import { Header } from './components/common/Header';
 import { ToastContainer } from './components/common/ToastContainer';
@@ -80,6 +80,48 @@ export default function App() {
   const [showInsertClauseModal, setShowInsertClauseModal] = useState(false);
   const [clauseToInsert, setClauseToInsert] = useState<Clause | null>(null);
   const [editModalTarget, setEditModalTarget] = useState<'library' | 'document'>('document');
+
+  // Resizable Splitter & Zen Mode state
+  const [isZenMode, setIsZenMode] = useState(false);
+  const [splitRatio, setSplitRatio] = useState<number>(58); // Percentage width for contract paper preview
+  const [isDraggingSplitter, setIsDraggingSplitter] = useState(false);
+  const workspaceRef = useRef<HTMLDivElement>(null);
+
+  // Keyboard shortcut listener (Escape to exit Zen Mode)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isZenMode) {
+        setIsZenMode(false);
+        showToast('Вышли из режима фокуса (Zen Mode)');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isZenMode, showToast]);
+
+  // Mouse drag event handlers for resizable splitter
+  useEffect(() => {
+    if (!isDraggingSplitter) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!workspaceRef.current) return;
+      const rect = workspaceRef.current.getBoundingClientRect();
+      const offsetX = e.clientX - rect.left;
+      const newPercent = Math.min(Math.max((offsetX / rect.width) * 100, 32), 75);
+      setSplitRatio(newPercent);
+    };
+
+    const handleMouseUp = () => {
+      setIsDraggingSplitter(false);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDraggingSplitter]);
 
   const [targetPositionSettings, setTargetPositionSettings] = useState<{
     relativeToClauseId?: string;
@@ -232,7 +274,7 @@ export default function App() {
   const documentClauseIds = document.clauses.map(c => c.id);
 
   return (
-    <div className="h-screen overflow-hidden bg-slate-100 flex flex-col font-sans text-slate-900 antialiased selection:bg-blue-500 selection:text-white">
+    <div className="h-screen overflow-hidden bg-slate-100 flex flex-col font-ui-sans text-slate-900 antialiased selection:bg-blue-500 selection:text-white">
       
       {/* HEADER */}
       <Header
@@ -246,13 +288,24 @@ export default function App() {
           setShowTemplateModal(true);
         }}
         showToast={showToast}
+        isZenMode={isZenMode}
+        onToggleZenMode={() => setIsZenMode(!isZenMode)}
       />
 
-      {/* MAIN TWO-COLUMN WORKSPACE */}
-      <main className="flex-1 min-h-0 max-w-[1700px] w-full mx-auto p-3 sm:p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5 overflow-hidden">
+      {/* MAIN FLEX WORKSPACE WITH RESIZABLE SPLITTER */}
+      <main
+        ref={workspaceRef}
+        className="flex-1 min-h-0 max-w-[1700px] w-full mx-auto p-3 sm:p-4 md:p-6 flex flex-col lg:flex-row gap-2 lg:gap-0 overflow-hidden relative"
+      >
         
-        {/* LEFT PAPER PREVIEW (7 cols) - INDEPENDENT SCROLL */}
-        <div className="lg:col-span-7 xl:col-span-8 flex flex-col h-full min-h-0 overflow-hidden space-y-3">
+        {/* LEFT PAPER PREVIEW - INDEPENDENT SCROLL */}
+        <div
+          style={{ width: isZenMode ? '100%' : undefined }}
+          className={`flex flex-col h-full min-h-0 overflow-hidden space-y-3 transition-all duration-200 ${
+            isZenMode ? 'max-w-4xl mx-auto w-full' : 'lg:flex-1'
+          }`}
+          {...(!isZenMode ? { style: { width: `${splitRatio}%` } } : {})}
+        >
           <PreviewToolbar
             document={document}
             onUpdateDocumentSettings={setDocument}
@@ -320,129 +373,163 @@ export default function App() {
           </div>
         </div>
 
-        {/* RIGHT CONTROL PANEL (5 cols) - INDEPENDENT SCROLL */}
-        <div className="lg:col-span-5 xl:col-span-4 h-full min-h-0 overflow-y-auto pl-1 pr-1">
-          
-          {mainMode === 'drafting' ? (
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden flex flex-col h-full">
-              {/* TAB SWITCHER HEADER */}
-              <div className="p-2.5 bg-slate-100/80 border-b border-slate-200 flex items-center space-x-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setDraftingTab('library')}
-                  className={`flex-1 py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center space-x-2 transition-all cursor-pointer ${
-                    draftingTab === 'library'
-                      ? 'bg-white text-blue-700 shadow-xs border border-slate-200/80'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-                  }`}
-                >
-                  <BookOpen className="w-4 h-4 text-blue-600" />
-                  <span>Библиотека клауз</span>
-                  <span className={`px-1.5 py-0.2 text-[10px] rounded-full font-mono ${
-                    draftingTab === 'library' ? 'bg-blue-100 text-blue-800' : 'bg-slate-200 text-slate-700'
-                  }`}>
-                    {clauses.length}
-                  </span>
-                </button>
+        {/* INTERACTIVE SPLITTER HANDLE */}
+        {!isZenMode && (
+          <div
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setIsDraggingSplitter(true);
+            }}
+            onDoubleClick={() => setSplitRatio(58)}
+            title="Перетащите для изменения ширины панелей. Двойной клик — сброс"
+            className={`hidden lg:flex flex-col items-center justify-center w-3 cursor-col-resize z-30 group select-none transition-colors ${
+              isDraggingSplitter ? 'bg-blue-600/20' : 'hover:bg-blue-500/10'
+            }`}
+          >
+            <div className={`w-1 h-16 rounded-full transition-all ${
+              isDraggingSplitter ? 'bg-blue-600 shadow-md' : 'bg-slate-300 group-hover:bg-blue-500'
+            }`} />
+          </div>
+        )}
 
-                <button
-                  type="button"
-                  onClick={() => setDraftingTab('structure')}
-                  className={`flex-1 py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center space-x-2 transition-all cursor-pointer ${
-                    draftingTab === 'structure'
-                      ? 'bg-white text-purple-700 shadow-xs border border-slate-200/80'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-                  }`}
-                >
-                  <GitFork className="w-4 h-4 text-purple-600" />
-                  <span>Редактор шаблона</span>
-                  <span className={`px-1.5 py-0.2 text-[10px] rounded-full font-mono ${
-                    draftingTab === 'structure' ? 'bg-purple-100 text-purple-800' : 'bg-slate-200 text-slate-700'
-                  }`}>
-                    {document.clauses.length}
-                  </span>
-                </button>
+        {/* RIGHT CONTROL PANEL - INDEPENDENT SCROLL */}
+        {!isZenMode && (
+          <div
+            style={{ width: `${100 - splitRatio}%` }}
+            className="hidden lg:block h-full min-h-0 overflow-y-auto pl-2 pr-1 transition-all duration-200"
+          >
+            {mainMode === 'drafting' ? (
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden flex flex-col h-full">
+                {/* TAB SWITCHER HEADER */}
+                <div className="p-2.5 bg-slate-100/80 border-b border-slate-200 flex items-center space-x-2 shrink-0 font-ui-sans">
+                  <button
+                    type="button"
+                    onClick={() => setDraftingTab('library')}
+                    className={`flex-1 py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center space-x-2 transition-all cursor-pointer ${
+                      draftingTab === 'library'
+                        ? 'bg-white text-blue-700 shadow-xs border border-slate-200/80'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                    }`}
+                  >
+                    <BookOpen className="w-4 h-4 text-blue-600" />
+                    <span>Библиотека клауз</span>
+                    <span className={`px-1.5 py-0.2 text-[10px] rounded-full font-mono ${
+                      draftingTab === 'library' ? 'bg-blue-100 text-blue-800' : 'bg-slate-200 text-slate-700'
+                    }`}>
+                      {clauses.length}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setDraftingTab('structure')}
+                    className={`flex-1 py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center space-x-2 transition-all cursor-pointer ${
+                      draftingTab === 'structure'
+                        ? 'bg-white text-purple-700 shadow-xs border border-slate-200/80'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                    }`}
+                  >
+                    <GitFork className="w-4 h-4 text-purple-600" />
+                    <span>Редактор шаблона</span>
+                    <span className={`px-1.5 py-0.2 text-[10px] rounded-full font-mono ${
+                      draftingTab === 'structure' ? 'bg-purple-100 text-purple-800' : 'bg-slate-200 text-slate-700'
+                    }`}>
+                      {document.clauses.length}
+                    </span>
+                  </button>
+                </div>
+
+                {/* TAB CONTENT PANEL */}
+                <div className={`flex-1 min-h-0 ${draftingTab === 'library' ? 'p-3 sm:p-4 pb-2 flex flex-col overflow-hidden' : 'p-3 sm:p-4 overflow-y-auto'}`}>
+                  {draftingTab === 'library' ? (
+                    <ClauseLibrary
+                      clauses={clauses}
+                      folders={folders}
+                      documentClauseIds={documentClauseIds}
+                      selectedCategory={selectedCategory}
+                      onSelectCategory={setSelectedCategory}
+                      selectedFolderId={selectedFolderId}
+                      onSelectFolder={setSelectedFolderId}
+                      expandedFolderIds={expandedFolderIds}
+                      onToggleExpandFolder={handleToggleExpandFolder}
+                      searchQuery={searchQuery}
+                      onSearchChange={setSearchQuery}
+                      onlyFavorites={onlyFavorites}
+                      onToggleOnlyFavorites={() => setOnlyFavorites(!onlyFavorites)}
+                      selectedClause={selectedClauseInDoc}
+                      selectedClauseNumber={selectedClauseNumber}
+                      onToggleAddClause={handleToggleAddClause}
+                      onEditClause={(clause) => {
+                        setClauseToEdit(clause);
+                        setEditModalTarget('library');
+                        setShowEditModal(true);
+                      }}
+                      onDeleteClause={handleDeleteClauseFromLibrary}
+                      onOpenNewClauseModal={() => {
+                        setClauseToEdit(null);
+                        setEditModalTarget('library');
+                        setShowEditModal(true);
+                      }}
+                    />
+                  ) : (
+                    <TemplateClauseEditor
+                      document={document}
+                      onUpdateDocument={setDocument}
+                      selectedClauseId={selectedClauseId}
+                      onSelectClause={setSelectedClauseId}
+                      onAddClauseAbove={(clauseId) => {
+                        setSelectedClauseId(clauseId);
+                        setClauseToEdit(null);
+                        setEditModalTarget('document');
+                        setShowEditModal(true);
+                      }}
+                      onAddClauseBelow={(clauseId) => {
+                        setSelectedClauseId(clauseId);
+                        setClauseToEdit(null);
+                        setEditModalTarget('document');
+                        setShowEditModal(true);
+                      }}
+                      onEditClause={(clause) => {
+                        setClauseToEdit(clause);
+                        setEditModalTarget('document');
+                        setShowEditModal(true);
+                      }}
+                      onSwitchToLibrary={() => setDraftingTab('library')}
+                      showToast={showToast}
+                    />
+                  )}
+                </div>
               </div>
-
-              {/* TAB CONTENT PANEL */}
-              <div className={`flex-1 min-h-0 ${draftingTab === 'library' ? 'p-3 sm:p-4 pb-2 flex flex-col overflow-hidden' : 'p-3 sm:p-4 overflow-y-auto'}`}>
-                {draftingTab === 'library' ? (
-                  <ClauseLibrary
-                    clauses={clauses}
-                    folders={folders}
-                    documentClauseIds={documentClauseIds}
-                    selectedCategory={selectedCategory}
-                    onSelectCategory={setSelectedCategory}
-                    selectedFolderId={selectedFolderId}
-                    onSelectFolder={setSelectedFolderId}
-                    expandedFolderIds={expandedFolderIds}
-                    onToggleExpandFolder={handleToggleExpandFolder}
-                    searchQuery={searchQuery}
-                    onSearchChange={setSearchQuery}
-                    onlyFavorites={onlyFavorites}
-                    onToggleOnlyFavorites={() => setOnlyFavorites(!onlyFavorites)}
-                    selectedClause={selectedClauseInDoc}
-                    selectedClauseNumber={selectedClauseNumber}
-                    onToggleAddClause={handleToggleAddClause}
-                    onEditClause={(clause) => {
-                      setClauseToEdit(clause);
-                      setEditModalTarget('library');
-                      setShowEditModal(true);
-                    }}
-                    onDeleteClause={handleDeleteClauseFromLibrary}
-                    onOpenNewClauseModal={() => {
-                      setClauseToEdit(null);
-                      setEditModalTarget('library');
-                      setShowEditModal(true);
-                    }}
-                  />
-                ) : (
-                  <TemplateClauseEditor
-                    document={document}
-                    onUpdateDocument={setDocument}
-                    selectedClauseId={selectedClauseId}
-                    onSelectClause={setSelectedClauseId}
-                    onAddClauseAbove={(clauseId) => {
-                      setSelectedClauseId(clauseId);
-                      setClauseToEdit(null);
-                      setEditModalTarget('document');
-                      setShowEditModal(true);
-                    }}
-                    onAddClauseBelow={(clauseId) => {
-                      setSelectedClauseId(clauseId);
-                      setClauseToEdit(null);
-                      setEditModalTarget('document');
-                      setShowEditModal(true);
-                    }}
-                    onEditClause={(clause) => {
-                      setClauseToEdit(clause);
-                      setEditModalTarget('document');
-                      setShowEditModal(true);
-                    }}
-                    onSwitchToLibrary={() => setDraftingTab('library')}
-                    showToast={showToast}
-                  />
-                )}
-              </div>
-            </div>
-          ) : (
-            /* Q&A SURVEY WIZARD PANEL */
-            <QASurveyWizard
-              questionnaire={document.questionnaire}
-              qaAnswers={qaAnswers}
-              stepIndex={qaStepIndex}
-              onStepIndexChange={setQaStepIndex}
-              onAnswerChange={handleQaAnswerChange}
-              onAutoFillAI={handleAutoFillAI}
-              document={document}
-              onUpdateDocument={setDocument}
-              showToast={showToast}
-            />
-          )}
-
-        </div>
+            ) : (
+              /* Q&A SURVEY WIZARD PANEL */
+              <QASurveyWizard
+                questionnaire={document.questionnaire}
+                qaAnswers={qaAnswers}
+                stepIndex={qaStepIndex}
+                onStepIndexChange={setQaStepIndex}
+                onAnswerChange={handleQaAnswerChange}
+                onAutoFillAI={handleAutoFillAI}
+                document={document}
+                onUpdateDocument={setDocument}
+                showToast={showToast}
+              />
+            )}
+          </div>
+        )}
 
       </main>
+
+      {/* FLOATING ZEN MODE EXIT BUTTON */}
+      {isZenMode && (
+        <button
+          type="button"
+          onClick={() => setIsZenMode(false)}
+          className="fixed bottom-6 right-6 z-50 px-4 py-2.5 bg-slate-900/90 hover:bg-slate-900 text-white rounded-full shadow-2xl border border-slate-700/80 font-bold text-xs flex items-center space-x-2 backdrop-blur-md transition-all cursor-pointer animate-fade-in"
+        >
+          <Minimize2 className="w-4 h-4 text-amber-400" />
+          <span>Выйти из Zen Mode (Esc)</span>
+        </button>
+      )}
 
       {/* MODALS & TOAST */}
       <ClauseEditModal

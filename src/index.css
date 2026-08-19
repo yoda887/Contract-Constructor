@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+.font-ui-sans {
+  font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+.font-contract-serif {
+  font-family: 'Lora', 'PT Serif', Georgia, Cambria, 'Times New Roman', serif;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
 .clause-card {
   position: relative;
   background-color: #ffffff;
@@ -16,38 +28,44 @@
   box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.08);
 }
 
-/* Floating green add button top-left on card corner */
+/* Floating primary blue add button top-left on card corner */
 .action-button.add-button {
   position: absolute;
   top: 0;
   left: 0;
   transform: translate(-50%, -50%);
   z-index: 20;
-  width: 24px;
-  height: 24px;
-  background-color: #16a34a;
+  width: 20px;
+  height: 20px;
+  background-color: #2563eb;
   color: #ffffff;
-  border: 2px solid #e2e8f0;
+  border: 1.5px solid #ffffff;
   border-radius: 50%;
   font-weight: 800;
-  font-size: 15px;
+  font-size: 12px;
   line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.25);
   text-decoration: none;
   cursor: pointer;
-  transition: transform 0.15s ease, background-color 0.15s ease;
+  transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .action-button.add-button:hover {
-  background-color: #15803d;
-  transform: translate(-50%, -50%) scale(1.08);
+  background-color: #1d4ed8;
+  transform: translate(-50%, -50%) scale(1.12);
+  box-shadow: 0 2px 6px rgba(29, 78, 216, 0.35);
+}
+
+.action-button.add-button:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
 }
 
 .action-button.add-button.added {
-  background-color: #059669;
+  background-color: #2563eb;
 }
 
 /* Top Light Blue Header Bar */
@@ -191,7 +209,7 @@
   padding: 12px 16px 12px 40px;
   border: 1px solid #ddd;
   border-radius: 4px;
-  font-family: 'Segoe UI', Tahoma, sans-serif;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: 14px;
   line-height: 1.6;
   background: transparent;
@@ -232,7 +250,7 @@
   background-color: #fff;
   border: 1px solid transparent;
   border-radius: 4px;
-  font-family: 'Segoe UI', Tahoma, sans-serif;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: 14px;
   line-height: 1.6;
   color: #333;

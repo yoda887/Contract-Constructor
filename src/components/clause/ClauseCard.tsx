@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Trash2, ArrowUp, ArrowDown, ArrowUpToLine, ArrowDownToLine } from 'lucide-react';
+import { Trash2, ArrowUp, ArrowDown, ArrowUpToLine, ArrowDownToLine, Edit3, MoreHorizontal, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Clause } from '../../types';
 import { isPartyRoleVariable } from '../../utils/variableResolver';
@@ -117,14 +117,15 @@ export const ClauseCard: React.FC<ClauseCardProps> = ({
 
   return (
     <div
-      className={`clause-card ${inDocument ? 'added-clause' : ''}`}
+      className={`clause-card ${inDocument ? 'added-clause ring-1 ring-blue-400/50' : ''}`}
       id={`clause-${clause.id}`}
       data-favorite={clause.isFavorite ? '1' : '0'}
     >
       {/* Кнопка с плюсиком слева сверху для добавления клаузы в документ */}
       <div className="absolute top-0 left-0 z-20" ref={popoverRef}>
-        <a
-          href="#"
+        <button
+          type="button"
+          aria-label="Добавить в шаблон договора"
           title="Добавить в шаблон договора"
           className="action-button add-button"
           onClick={(e) => {
@@ -137,8 +138,8 @@ export const ClauseCard: React.FC<ClauseCardProps> = ({
             }
           }}
         >
-          +
-        </a>
+          <Plus className="w-3 h-3 text-white stroke-[2.5]" />
+        </button>
 
         {/* Popover choice menu when document has clauses */}
         <AnimatePresence>
@@ -227,53 +228,45 @@ export const ClauseCard: React.FC<ClauseCardProps> = ({
       </div>
 
       {/* Блок с системным именем и кнопкой опций */}
-      <div className="clause-header-bar">
-        <table className="clause-actions" cellSpacing="0" cellPadding="0">
-          <tbody>
-            <tr>
-              <td className="clause-name">
-                <span>{clause.name}</span>
-              </td>
-              <td className="clause-button">
-                <a
-                  href="#"
-                  title="Опции"
-                  className="action-button option-button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    onEdit(clause);
-                  }}
-                >
-                  ...
-                </a>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div className="clause-header-bar flex items-center justify-between gap-2 px-3.5 py-2">
+        <span className="clause-name font-bold text-xs text-blue-900 truncate pl-3.5">
+          {clause.name}
+        </span>
+        <button
+          type="button"
+          title="Опции и свойства пункта"
+          aria-label="Опции"
+          className="p-1 text-slate-600 hover:text-slate-900 hover:bg-blue-200/60 rounded-md border border-blue-200 transition-colors flex items-center justify-center shrink-0 cursor-pointer"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onEdit(clause);
+          }}
+        >
+          <MoreHorizontal className="w-3.5 h-3.5" />
+        </button>
       </div>
 
       {/* Блок с заголовком пункта и самим текстом */}
-      <div className="clause-body">
-        <table className="clause-title-tab" cellSpacing="0" cellPadding="0">
-          <tbody>
-            <tr>
-              <td className="clause-title">
-                {clause.titleRu || clause.name}
-              </td>
-              <td className="clause-button-edit">
-                <a
-                  href="#"
-                  title="Редактировать"
-                  className="action-button edit-button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    onEdit(clause);
-                  }}
-                />
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div className="clause-body p-3.5">
+        <div className="flex items-center justify-between gap-2 mb-2 pb-1 border-b border-slate-100">
+          <h4 className="clause-title text-xs font-bold text-slate-900 leading-snug">
+            {clause.titleRu || clause.name}
+          </h4>
+          <button
+            type="button"
+            title="Редактировать текст пункта"
+            aria-label="Редактировать"
+            className="p-1 text-slate-500 hover:text-blue-700 hover:bg-slate-100 rounded-md border border-slate-200/80 transition-colors flex items-center justify-center shrink-0 cursor-pointer"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onEdit(clause);
+            }}
+          >
+            <Edit3 className="w-3.5 h-3.5" />
+          </button>
+        </div>
 
         {/* Блок с самим текстом пункта */}
         <div className="clause-content">
@@ -283,13 +276,14 @@ export const ClauseCard: React.FC<ClauseCardProps> = ({
         </div>
 
         {/* Delete action row */}
-        <div className="flex items-center justify-end text-[10px] pt-2 mt-2 border-t border-slate-100 font-sans">
+        <div className="flex items-center justify-end text-[11px] pt-2.5 mt-2.5 border-t border-slate-100 font-ui-sans">
           <button
+            type="button"
             onClick={() => onDelete(clause.id)}
-            className="text-slate-400 hover:text-rose-600 font-semibold transition-colors flex items-center space-x-1"
+            className="text-slate-400 hover:text-rose-600 font-semibold transition-colors flex items-center space-x-1 p-1 rounded-md hover:bg-rose-50 cursor-pointer"
             title="Удалить пункт из библиотеки"
           >
-            <Trash2 className="w-3 h-3" />
+            <Trash2 className="w-3.5 h-3.5" />
             <span>Удалить</span>
           </button>
         </div>

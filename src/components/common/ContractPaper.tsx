@@ -91,12 +91,12 @@ export const ContractPaper: React.FC<ContractPaperProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-md border border-slate-200 p-6 sm:p-10 min-h-[850px] font-serif text-slate-900 text-sm leading-relaxed space-y-6">
+    <div className="bg-white rounded-2xl shadow-xl border border-slate-200/90 p-8 sm:p-12 min-h-[900px] font-contract-serif text-slate-900 text-[14.5px] leading-relaxed space-y-6 transition-all duration-200">
       
       {/* HEADER */}
       {document.printTitle !== false && (
-        <div className="text-center space-y-2 border-b border-slate-200 pb-6 font-sans">
-          <h2 className="text-lg font-black tracking-tight text-slate-900 uppercase">
+        <div className="text-center space-y-2 border-b border-slate-200/80 pb-6 font-ui-sans">
+          <h2 className="text-xl font-extrabold tracking-tight text-slate-900 uppercase">
             {document.title}
           </h2>
           <div className="flex justify-between items-center text-xs text-slate-500 font-semibold pt-2">
@@ -236,37 +236,38 @@ export const ContractPaper: React.FC<ContractPaperProps> = ({
 
                       {/* Origin and repeats visual metadata tag indicators */}
                       {!readOnly && (
-                        <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-400 select-none pb-1 font-sans">
+                        <div className="flex flex-wrap items-center gap-1.5 text-[10.5px] select-none pb-1 font-ui-sans">
                           {Boolean(clause.isAdHoc || clause.id?.startsWith('adhoc-') || clause.isLinkedToLibrary === false) ? (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-xs bg-amber-50 text-amber-800 font-semibold border border-amber-200" title="Автономный пункт (Ad-hoc) — редактируется свободно прямо в шаблоне">
-                              ✏️ Ad-hoc
+                            <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 font-semibold border border-amber-200/80 shadow-2xs" title="Автономный пункт (Ad-hoc) — редактируется свободно прямо в шаблоне">
+                              <Edit3 className="w-3 h-3 text-amber-600 shrink-0" />
+                              <span>Ad-hoc</span>
                             </span>
                           ) : (
                             <span
-                              className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded-xs bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-900 font-bold border border-blue-200 cursor-pointer transition-colors"
+                              className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-800 font-semibold border border-blue-200/80 hover:bg-blue-100 hover:text-blue-900 shadow-2xs cursor-pointer transition-colors"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onConvertClauseToAdHoc && onConvertClauseToAdHoc(clause.id);
                               }}
                               title="Связана с библиотекой (автообновление). Прямое редактирование в шаблоне заблокировано. Нажмите, чтобы отвязать и сделать Ad-hoc."
                             >
-                              <Link2 className="w-3 h-3 text-blue-600 inline" />
-                              <span>🔗 Связана с библиотекой</span>
+                              <Link2 className="w-3 h-3 text-blue-600 shrink-0" />
+                              <span>Связана с библиотекой</span>
                             </span>
                           )}
                           {item.totalInstances > 1 && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-xs bg-green-50 text-green-700 font-semibold border border-green-100">
-                              🔄 Повтор ({item.instanceIndex + 1}/{item.totalInstances})
+                            <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-purple-50 text-purple-800 font-semibold border border-purple-200/80 shadow-2xs">
+                              <span>🔄 Повтор ({item.instanceIndex + 1}/{item.totalInstances})</span>
                             </span>
                           )}
                           {clause.formatAsTitle && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-xs bg-purple-50 text-purple-700 font-semibold border border-purple-100 animate-pulse">
-                              👑 Заголовок документа
+                            <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-800 font-semibold border border-indigo-200/80 shadow-2xs animate-pulse">
+                              <span>👑 Заголовок документа</span>
                             </span>
                           )}
                           {clause.hideNumber && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-xs bg-amber-50 text-amber-700 font-semibold border border-amber-200">
-                              ¶ Без номера
+                            <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-semibold border border-slate-200 shadow-2xs">
+                              <span>¶ Без номера</span>
                             </span>
                           )}
                         </div>
